@@ -27,7 +27,7 @@ beforeAll(async () => {
     dbName: 'upsert-where-test',
     entities: [Document],
   });
-  await orm.schema.refreshDatabase();
+  await orm.schema.refresh();
 });
 
 afterAll(async () => {
@@ -36,7 +36,8 @@ afterAll(async () => {
 
 describe('upsert with where condition', () => {
   beforeEach(async () => {
-    await orm.schema.clearDatabase();
+    await orm.em.nativeDelete(Document, {});
+    await orm.em.flush();
   });
 
   test('upsert should only update when version is greater', async () => {
