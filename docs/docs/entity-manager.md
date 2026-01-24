@@ -527,6 +527,7 @@ By default, the EntityManager will prefer using the primary key, and fallback to
 - `onConflictAction?: 'ignore' | 'merge'` used ignore and merge as that is how the QB methods are called
 - `onConflictMergeFields?: (keyof T)[]` to control the merge clause
 - `onConflictExcludeFields?: (keyof T)[]` to omit fields from the merge clause
+- `onConflictWhere?: FilterQuery<T>` to add a WHERE clause to the ON CONFLICT clause, allowing conditional updates
 
 ```ts
 const [author1, author2, author3] = await em.upsertMany(Author, [{ ... }, { ... }, { ... }], {
@@ -550,6 +551,47 @@ insert into "author"
     "current_age" = excluded."current_age",
     "foo" = excluded."foo"
   returning "_id", "current_age", "foo", "bar"
+```
+
+### Conditional upserts with `onConflictWhere`
+
+The `onConflictWhere` option allows you to add a WHERE clause to the ON CONFLICT statement, enabling conditional updates based on existing data. This is useful for scenarios like optimistic locking or version-based updates where you only want to update if certain conditions are met.
+
+```ts
+// Only update if the existing version is less than the new version
+await em.upsert(Document, {
+  name: 'doc1',
+  version: 2,
+  content: 'updated content',
+}, {
+  onConflictFields: ['name'],
+  onConflictWhere: { version: { $lt: 2 } },
+});
+```
+
+This generates a query like:
+
+```sql
+insert into "document" ("name", "version", "content")
+  values ('doc1', 2, 'updated content')
+  on conflict ("name") where "version" < 2
+  do update set
+    "version" = excluded."version",
+    "content" = excluded."content"
+```
+
+If the WHERE condition is not met (e.g., the existing version is >= 2), the update part of the upsert will be skipped, and the existing row will remain unchanged. The entity manager will still return the existing entity instance. If the row doesn't exist, it will be inserted regardless of the WHERE clause.
+
+The `onConflictWhere` option works with `em.upsertMany()` as well:
+
+```ts
+await em.upsertMany(Document, [
+  { name: 'doc1', version: 2, content: 'updated 1' },
+  { name: 'doc2', version: 3, content: 'updated 2' },
+], {
+  onConflictFields: ['name'],
+  onConflictWhere: { version: { $lt: 10 } },
+});
 ```
 
 ## Refreshing entity state
