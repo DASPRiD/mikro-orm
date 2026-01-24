@@ -527,7 +527,7 @@ By default, the EntityManager will prefer using the primary key, and fallback to
 - `onConflictAction?: 'ignore' | 'merge'` used ignore and merge as that is how the QB methods are called
 - `onConflictMergeFields?: (keyof T)[]` to control the merge clause
 - `onConflictExcludeFields?: (keyof T)[]` to omit fields from the merge clause
-- `onConflictWhere?: FilterQuery<T>` to add a WHERE clause to the conflict target, allowing conditional updates
+- `onConflictWhere?: FilterQuery<T>` to add a WHERE clause to the ON CONFLICT clause, allowing conditional updates
 
 ```ts
 const [author1, author2, author3] = await em.upsertMany(Author, [{ ... }, { ... }, { ... }], {
@@ -555,7 +555,7 @@ insert into "author"
 
 ### Conditional upserts with `onConflictWhere`
 
-The `onConflictWhere` option allows you to add a WHERE clause to the conflict target, enabling conditional updates based on existing data. This is useful for scenarios like optimistic locking or version-based updates where you only want to update if certain conditions are met.
+The `onConflictWhere` option allows you to add a WHERE clause to the ON CONFLICT statement, enabling conditional updates based on existing data. This is useful for scenarios like optimistic locking or version-based updates where you only want to update if certain conditions are met.
 
 ```ts
 // Only update if the existing version is less than the new version
@@ -580,7 +580,7 @@ insert into "document" ("name", "version", "content")
     "content" = excluded."content"
 ```
 
-If the WHERE condition is not met (e.g., the existing version is >= 2), the update part of the upsert will be skipped, and the existing row will remain unchanged. If the row doesn't exist, it will be inserted regardless of the WHERE clause.
+If the WHERE condition is not met (e.g., the existing version is >= 2), the update part of the upsert will be skipped, and the existing row will remain unchanged. The entity manager will still return the existing entity instance. If the row doesn't exist, it will be inserted regardless of the WHERE clause.
 
 The `onConflictWhere` option works with `em.upsertMany()` as well:
 
