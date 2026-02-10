@@ -1,5 +1,4 @@
-import { MikroORM } from '@mikro-orm/postgresql';
-import { Entity, PrimaryKey, Property, ReflectMetadataProvider } from '@mikro-orm/decorators/legacy';
+import { MikroORM, Entity, PrimaryKey, Property } from '@mikro-orm/postgresql';
 import { mockLogger } from '../../helpers.js';
 
 @Entity()
@@ -23,11 +22,10 @@ let orm: MikroORM;
 
 beforeAll(async () => {
   orm = await MikroORM.init({
-    metadataProvider: ReflectMetadataProvider,
     dbName: 'upsert-where-test',
     entities: [Document],
   });
-  await orm.schema.refresh();
+  await orm.schema.refreshDatabase();
 });
 
 afterAll(async () => {
@@ -36,7 +34,7 @@ afterAll(async () => {
 
 describe('upsert with where condition', () => {
   beforeEach(async () => {
-    await orm.schema.clear();
+    await orm.schema.clearDatabase();
   });
 
   test('upsert should only update when version is greater', async () => {
