@@ -1,9 +1,6 @@
 import type { Constructor, EntityProperty, Platform, TransformContext } from '@mikro-orm/core';
 import { Type } from '@mikro-orm/core';
 
-type InnerJSType<T extends Type<any, any>> = T extends Type<infer JS, any> ? NonNullable<JS> : never;
-type InnerDBType<T extends Type<any, any>> = T extends Type<any, infer DB> ? NonNullable<DB> : never;
-
 /**
  * Maps a PostgreSQL native typed array column (e.g. `integer[]`, `decimal(10,2)[]`) to a JS array.
  *
@@ -27,56 +24,60 @@ type InnerDBType<T extends Type<any, any>> = T extends Type<any, infer DB> ? Non
  * @Property({ type: new NativeArrayType(new DecimalType('number')), precision: 10, scale: 2 })
  * prices!: number[];
  */
-export class NativeArrayType<Inner extends Type<any, any>> extends Type<
-  InnerJSType<Inner>[] | null,
-  InnerDBType<Inner>[] | null
-> {
-  readonly #inner: Inner;
+export class NativeArrayType<InnerJsType, InnerDbType> extends Type<InnerJsType[] | null, InnerDbType[] | null> {
+  readonly #inner: Type<InnerJsType, InnerDbType>;
 
-  constructor(inner: Constructor<Inner> | Inner) {
+  constructor(inner: Constructor<Type<InnerJsType, InnerDbType>> | Type<InnerJsType, InnerDbType>) {
     super();
-    this.#inner = inner instanceof Type ? inner : new (inner as Constructor<Inner>)();
+    this.#inner = inner instanceof Type ? inner : new inner();
+
+    for (const key of ['platform', 'meta', 'prop'] as const) {
+      Object.defineProperty(this, key, {
+        get: () => this.#inner[key],
+        set: (value) => this.#inner.prop = key === 'prop' ? { ...value, autoincrement: false } : value,
+        enumerable: true,
+        configurable: true,
+      });
+    }
   }
 
   override getColumnType(prop: EntityProperty, platform: Platform): string {
     const innerProp = { ...prop, autoincrement: false };
-    this.#inner.prop = innerProp;
-    this.#inner.platform = platform;
     return `${this.#inner.getColumnType(innerProp, platform)}[]`;
   }
 
   override convertToDatabaseValue(
-    value: InnerJSType<Inner>[] | null,
+    value: InnerJsType[] | null,
     platform: Platform,
     context?: TransformContext,
-  ): InnerDBType<Inner>[] | null {
+  ): InnerDbType[] | null {
     if (value == null) {
       return value;
     }
 
-    return value.map(item => this.#inner.convertToDatabaseValue(item as InnerJSType<Inner>, platform, context) as InnerDBType<Inner>);
+    return value.map(item => this.#inner.convertToDatabaseValue(item, platform, context));
   }
 
   override convertToJSValue(
-    value: InnerDBType<Inner>[] | null,
+    value: InnerDbType[] | null,
     platform: Platform,
-  ): InnerJSType<Inner>[] | null {
+  ): InnerJsType[] | null {
     if (value == null) {
       return value;
     }
 
-    return value.map(item => this.#inner.convertToJSValue(item as InnerDBType<Inner>, platform) as InnerJSType<Inner>);
+    return value.map(item => this.#inner.convertToJSValue(item, platform));
   }
 
   override compareAsType(): string {
     return 'array';
   }
 
-  override toJSON(value: InnerJSType<Inner>[] | null, platform: Platform): InnerJSType<Inner>[] | InnerDBType<Inner>[] | null {
+  override toJSON(value: InnerJsType[] | null, platform: Platform): InnerJsType[] | InnerDbType[] | null {
     if (value == null) {
       return value;
     }
 
-    return value.map(item => this.#inner.toJSON(item as InnerJSType<Inner>, platform)) as InnerJSType<Inner>[];
+    return value.map(item => this.#inner.toJSON(item, platform)) as InnerJsType[] | InnerDbType[];
   }
 }
