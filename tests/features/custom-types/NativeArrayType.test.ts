@@ -30,7 +30,6 @@ describe('NativeArrayType', () => {
 
     test('strips autoincrement so inner type does not produce serial', () => {
       const type = new NativeArrayType(new IntegerType());
-      // With autoincrement the platform would normally return 'serial', but we strip it.
       expect(type.getColumnType(prop({ autoincrement: true }), platform)).toBe('int[]');
     });
   });
@@ -39,7 +38,6 @@ describe('NativeArrayType', () => {
     test('passes each item through the inner type', () => {
       const inner = new DecimalType('number');
       const type = new NativeArrayType(inner);
-      // DecimalType converts number -> string for DB
       expect(type.convertToDatabaseValue([1.5, 2.5], platform)).toStrictEqual([1.5, 2.5]);
     });
 
